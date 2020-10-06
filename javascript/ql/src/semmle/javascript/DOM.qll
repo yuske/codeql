@@ -351,28 +351,6 @@ module DOM {
           call.getNumArgument() = 1 and
           unique(InferredType t | t = getArgumentTypeFromJQueryMethodGet(call)) = TTNumber()
         )
-        or
-        // A `this` node from a callback given to a `$().each(callback)` call.
-        // purposely not using JQuery::MethodCall to avoid `jquery.each()`.
-        exists(DataFlow::CallNode eachCall | eachCall = JQuery::objectRef().getAMethodCall("each") |
-          this = DataFlow::thisNode(eachCall.getCallback(0).getFunction()) or
-          this = eachCall.getABoundCallbackParameter(0, 1)
-        )
-        or
-        // A receiver node of an event handler on a DOM node
-        exists(DataFlow::SourceNode domNode, DataFlow::FunctionNode eventHandler |
-          // NOTE: we do not use `getABoundFunctionValue()`, since bound functions tend to have
-          // a different receiver anyway
-          eventHandler = domNode.getAPropertySource(any(string n | n.matches("on%")))
-          or
-          eventHandler =
-            domNode.getAMethodCall("addEventListener").getArgument(1).getAFunctionValue()
-        |
-          domNode = domValueRef() and
-          this = eventHandler.getReceiver()
-        )
-        or
-        this = DataFlow::thisNode(any(EventHandlerCode evt))
       }
     }
   }
