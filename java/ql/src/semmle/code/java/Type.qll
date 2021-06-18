@@ -18,6 +18,7 @@ import JDK
  * Holds if reference type `t` is an immediate super-type of `sub`.
  */
 cached
+pragma[nomagictc]
 predicate hasSubtype(RefType t, Type sub) {
   // Direct subtype.
   extendsReftype(sub, t) and t != sub
@@ -346,9 +347,11 @@ class RefType extends Type, Annotatable, Modifiable, @reftype {
   predicate hasSubtype(RefType t) { hasSubtype(this, t) }
 
   /** Gets a direct subtype of this type. */
+  pragma[nomagictc]
   RefType getASubtype() { hasSubtype(this, result) }
 
   /** Gets a direct supertype of this type. */
+  pragma[nomagictc]
   RefType getASupertype() { hasSubtype(result, this) }
 
   /** Gets a direct or indirect supertype of this type, including itself. */
