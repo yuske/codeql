@@ -1163,7 +1163,7 @@ module DataFlow {
     }
 
     /**
-     * A data flow node representing arguments of the `.apply` function call 
+     * A data flow node representing arguments of the `.apply` function call
      * to emulate a separate argument for each parameter of a reflective function call.
      */
     private class ApplyArgumentNode extends DataFlow::Node {
@@ -1172,24 +1172,25 @@ module DataFlow {
       int index;
 
       ApplyArgumentNode() {
-        this = TApplyArgumentNode(
-          call.asExpr(), 
-          call.getReceiver().getABoundFunctionValue(_).getFunction(), 
-          index) and
+        this =
+          TApplyArgumentNode(call.asExpr(),
+            call.getReceiver().getABoundFunctionValue(_).getFunction(), index) and
         arrayArgument = call.getArgument(1)
       }
 
-      /** 
-       * Gets an explicit call of the `.apply` function call 
-       * that takes an argument represented by this data flow node. 
-       * */
+      /**
+       * Gets an explicit call of the `.apply` function call
+       * that takes an argument represented by this data flow node.
+       */
       ExplicitMethodCallNode getCall() { result = call }
 
       /** Gets an argument index represented by this data flow node. */
       int getIndex() { result = index }
 
-      override string toString() { result = arrayArgument.toString() + "[" + index.toString() + "]" }
-      
+      override string toString() {
+        result = arrayArgument.toString() + "[" + index.toString() + "]"
+      }
+
       override predicate hasLocationInfo(
         string filepath, int startline, int startcolumn, int endline, int endcolumn
       ) {
@@ -1200,7 +1201,7 @@ module DataFlow {
     /**
      * A data flow node representing a reflective function call.
      */
-    private abstract class ReflectiveCallNodeDef extends CallNodeDef {
+    abstract private class ReflectiveCallNodeDef extends CallNodeDef {
       ExplicitMethodCallNode originalCall;
 
       override InvokeExpr getInvokeExpr() { result = originalCall.getInvokeExpr() }
@@ -1226,17 +1227,13 @@ module DataFlow {
 
       override DataFlow::Node getAnArgument() {
         kind = "call" and 
-        result = originalCall.getAnArgument() and 
+        result = originalCall.getAnArgument() and
         result != getReceiver()
       }
 
-      override DataFlow::Node getASpreadArgument() {
-        result = originalCall.getASpreadArgument()
-      }
+      override DataFlow::Node getASpreadArgument() { result = originalCall.getASpreadArgument() }
 
-      override int getNumArgument() {
-        result >= 0 and result = originalCall.getNumArgument() - 1
-      }
+      override int getNumArgument() { result >= 0 and result = originalCall.getNumArgument() - 1 }
     }
 
     /**
@@ -1246,7 +1243,7 @@ module DataFlow {
       ApplyReflectiveCallNodeDef() { this = TReflectiveCallNode(originalCall.asExpr(), "apply") }
 
       ApplyArgumentNode getApplyArgument(int i) {
-        result.getCall() = originalCall and 
+        result.getCall() = originalCall and
         result.getIndex() = i
       }
 
@@ -1254,9 +1251,7 @@ module DataFlow {
 
       override DataFlow::Node getAnArgument() { none() }
 
-      override DataFlow::Node getASpreadArgument() {
-        result = originalCall.getArgument(1)
-      }
+      override DataFlow::Node getASpreadArgument() { result = originalCall.getArgument(1) }
 
       override int getNumArgument() { none() }
     }
