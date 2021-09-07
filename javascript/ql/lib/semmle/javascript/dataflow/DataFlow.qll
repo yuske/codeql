@@ -1194,6 +1194,8 @@ module DataFlow {
       ) {
         arrayArgument.hasLocationInfo(filepath, startline, startcolumn, endline, endcolumn)
       }
+
+      override BasicBlock getBasicBlock() { result = call.getBasicBlock() }
     }
 
     /**
