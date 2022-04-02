@@ -568,31 +568,32 @@ module TaintTracking {
     }
   }
 
-  /**
-   * A taint propagating data flow edge for assignments of the form `o[k] = v`, where
-   * one of the following holds:
-   *
-   * - `k` is not a constant and `o` refers to some object literal. The rationale
-   *   here is that `o` is most likely being used like a dictionary object.
-   *
-   * - `k` refers to `o.length`, that is, the assignment is of form `o[o.length] = v`.
-   *   In this case, the assignment behaves like `o.push(v)`.
-   */
-  private class ComputedPropWriteTaintStep extends SharedTaintStep {
-    override predicate heapStep(DataFlow::Node pred, DataFlow::Node succ) {
-      exists(AssignExpr assgn, IndexExpr idx, DataFlow::SourceNode obj |
-        assgn.getTarget() = idx and
-        obj.flowsToExpr(idx.getBase()) and
-        not exists(idx.getPropertyName()) and
-        pred = DataFlow::valueNode(assgn.getRhs()) and
-        succ = obj
-      |
-        obj instanceof DataFlow::ObjectLiteralNode
-        or
-        obj.getAPropertyRead("length").flowsToExpr(idx.getPropertyNameExpr())
-      )
-    }
-  }
+  // I have a lot FP due to this taint propagation, see _pp_computed_prop_write.PoC.js
+  // /**
+  //  * A taint propagating data flow edge for assignments of the form `o[k] = v`, where
+  //  * one of the following holds:
+  //  *
+  //  * - `k` is not a constant and `o` refers to some object literal. The rationale
+  //  *   here is that `o` is most likely being used like a dictionary object.
+  //  *
+  //  * - `k` refers to `o.length`, that is, the assignment is of form `o[o.length] = v`.
+  //  *   In this case, the assignment behaves like `o.push(v)`.
+  //  */
+  // private class ComputedPropWriteTaintStep extends SharedTaintStep {
+  //   override predicate heapStep(DataFlow::Node pred, DataFlow::Node succ) {
+  //     exists(AssignExpr assgn, IndexExpr idx, DataFlow::SourceNode obj |
+  //       assgn.getTarget() = idx and
+  //       obj.flowsToExpr(idx.getBase()) and
+  //       not exists(idx.getPropertyName()) and
+  //       pred = DataFlow::valueNode(assgn.getRhs()) and
+  //       succ = obj
+  //     |
+  //       obj instanceof DataFlow::ObjectLiteralNode
+  //       or
+  //       obj.getAPropertyRead("length").flowsToExpr(idx.getPropertyNameExpr())
+  //     )
+  //   }
+  // }
 
   /**
    * A taint propagating data flow edge arising from string concatenations.
