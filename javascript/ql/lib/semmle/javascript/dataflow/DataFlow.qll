@@ -1248,7 +1248,7 @@ module DataFlow {
     /**
      * A data flow node representing a reflective function call.
      */
-    abstract private class ReflectiveCallNodeDef extends CallNodeDef {
+    abstract private class ReflectiveCallNodeDef extends MethodCallNodeDef {
       ExplicitMethodCallNode originalCall;
 
       override InvokeExpr getInvokeExpr() { result = originalCall.getInvokeExpr() }
@@ -1260,6 +1260,8 @@ module DataFlow {
       override DataFlow::Node getCalleeNode() { result = originalCall.getReceiver() }
 
       override DataFlow::Node getReceiver() { result = originalCall.getArgument(0) }
+
+      override string getMethodName() { result = getCalleeName() }
     }
 
     /**
@@ -1273,7 +1275,6 @@ module DataFlow {
       }
 
       override DataFlow::Node getAnArgument() {
-        kind = "call" and 
         result = originalCall.getAnArgument() and
         result != getReceiver()
       }
