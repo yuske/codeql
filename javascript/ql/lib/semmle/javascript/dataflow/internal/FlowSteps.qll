@@ -215,6 +215,16 @@ private module CachedSteps {
         )
         or
         parm = reflectiveParameterAccess(f, i)
+        or
+        parm = reflectiveParameterAccess(f)
+        or 
+        f.hasRestParameter() and 
+        i >= (f.getNumParameter() - 1) and
+        (
+          parm = restParameterAccess(f, i)
+          or
+          parm = restParameterAccess(f)
+        )
       )
       or
       arg = invk.(DataFlow::CallNode).getReceiver() and
@@ -265,6 +275,45 @@ private module CachedSteps {
    */
   private DataFlow::SourceNode reflectiveParameterAccess(Function f, int i) {
     result.(DataFlow::PropRead).accesses(argumentsAccess(f), any(string p | i = p.toInt()))
+  }
+
+  private DataFlow::SourceNode reflectiveParameterAccess(Function f) {
+    exists(DataFlow::PropRead read |
+      read.getBase() = argumentsAccess(f) and
+      not exists(read.getPropertyName()) and
+      result = read
+    )
+  }
+
+  /**
+   * Gets a data-flow node that refers to the `i`th parameter of `f` through its rest argument
+   * object.
+   */
+  private DataFlow::SourceNode restParameterAccess(Function f, int i) {
+    exists(int lastIndex, DataFlow::Node restParameterNode | 
+      lastIndex = f.getNumParameter() - 1 and 
+      restParameterNode = DataFlow::valueNode(f.getParameter(lastIndex).getAVariable().getAnAccess())
+      |
+      exists(DataFlow::PropRead read |
+        read.getBase().getALocalSource() = restParameterNode.getALocalSource() and
+        read.getPropertyName() = any(string p | i - lastIndex = p.toInt()) and
+        result = read
+      )
+    ) 
+  }
+
+  private DataFlow::SourceNode restParameterAccess(Function f) {
+    exists(int lastIndex, DataFlow::Node restParameterNode | 
+      lastIndex = f.getNumParameter() - 1 and
+      restParameterNode = DataFlow::valueNode(f.getParameter(lastIndex).getAVariable().getAnAccess())
+      |
+      exists(DataFlow::PropRead read |
+        //read.getContainer().getEnclosingContainer*() = f and
+        read.getBase().getALocalSource() = restParameterNode.getALocalSource() and
+        not exists(read.getPropertyName()) and
+        result = read
+      )
+    ) 
   }
 
   /**
