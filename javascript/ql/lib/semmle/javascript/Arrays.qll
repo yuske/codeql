@@ -18,17 +18,21 @@ module ArrayTaintTracking {
   /**
    * A taint propagating data flow edge from `pred` to `succ` caused by a call `call` to a builtin array functions.
    */
+  // TODO: Need to do this check:
+  // // Filter out library methods named 'forEach' etc
+  // not DataFlow::moduleImport(_).flowsTo(getReceiver()) and
   predicate arrayFunctionTaintStep(DataFlow::Node pred, DataFlow::Node succ, DataFlow::CallNode call) {
     // `array.map(function (elt, i, ary) { ... })`: if `array` is tainted, then so are
     // `elt` and `ary`; similar for `forEach`
     exists(Function f |
-      call.getArgument(0).getAFunctionValue(0).getFunction() = f and
+      call.getArgument(0).getABoundFunctionValue(_).getFunction() = f and
       call.(DataFlow::MethodCallNode).getMethodName() = ["map", "forEach"] and
       pred = call.getReceiver() and
       succ = DataFlow::parameterNode(f.getParameter([0, 2]))
     )
     or
     // `array.map` with tainted return value in callback
+    // TODO: should be broken in call.getArgument(0) = f
     exists(DataFlow::FunctionNode f |
       call.(DataFlow::MethodCallNode).getMethodName() = "map" and
       call.getArgument(0) = f and // Require the argument to be a closure to avoid spurious call/return flow
@@ -39,32 +43,61 @@ module ArrayTaintTracking {
     // `array.filter(x => x)` keeps the taint
     call.(DataFlow::MethodCallNode).getMethodName() = "filter" and
     pred = call.getReceiver() and
-    succ = call and
-    exists(DataFlow::FunctionNode callback | callback = call.getArgument(0).getAFunctionValue() |
-      callback.getParameter(0).getALocalUse() = callback.getAReturn()
+    succ = call 
+    // TODO: BUG: the case `array.filter(x => true)` must work
+    // and
+    // exists(DataFlow::FunctionNode callback | callback = call.getArgument(0).getAFunctionValue() |
+    //   callback.getParameter(0).getALocalUse() = callback.getAReturn()
+    // )
+    or
+    // `array.reduce(function (acc, cur, i, ar) { ... }, init)`: 
+    // if `array` is tainted, then so are `cur` and `ar`;
+    // if `init` is tainted, then `acc` is taited as well
+    exists(DataFlow::FunctionNode f |
+      call.(DataFlow::MethodCallNode).getMethodName() = "reduce" and
+      call.getArgument(0).getABoundFunctionValue(_) = f and   // use `getABoundFunctionValue(_)` for supporting `func1.bind(null)` in the first arg of `reduce`
+      (
+        (
+          pred = call.getReceiver() and
+          succ = DataFlow::parameterNode(f.getFunction().getParameter([1, 3]))
+        )
+        or
+        (
+          pred = call.getArgument(1) and
+          succ = DataFlow::parameterNode(f.getFunction().getParameter(0))
+        )
+        or
+        (
+          // `array.reduce` with tainted return value in callback
+          pred = f.getAReturn() and // Require the argument to be a closure to avoid spurious call/return flow
+          succ = call
+        )
+        or
+        (
+          // pass a changed accumulator from return value to the first parameter 
+          pred = f.getAReturn() and
+          succ = DataFlow::parameterNode(f.getFunction().getParameter(0))
+        )
+      )
     )
     or
-    // `array.reduce` with tainted value in callback
-    call.(DataFlow::MethodCallNode).getMethodName() = "reduce" and
-    pred = call.getArgument(0).(DataFlow::FunctionNode).getAReturn() and // Require the argument to be a closure to avoid spurious call/return flow
-    succ = call
-    or
     // `array.push(e)`, `array.unshift(e)`: if `e` is tainted, then so is `array`.
-    pred = call.getAnArgument() and
-    succ.(DataFlow::SourceNode).getAMethodCall(["push", "unshift"]) = call
-    or
     // `array.push(...e)`, `array.unshift(...e)`: if `e` is tainted, then so is `array`.
-    pred = call.getASpreadArgument() and
-    // Make sure we handle reflective calls
+    (pred = call.getAnArgument() or pred = call.getASpreadArgument()) and
     succ = call.getReceiver().getALocalSource() and
     call.getCalleeName() = ["push", "unshift"]
     or
     // `array.splice(i, del, e)`: if `e` is tainted, then so is `array`.
     pred = call.getArgument(2) and
-    succ.(DataFlow::SourceNode).getAMethodCall("splice") = call
+    succ = call.getReceiver().getALocalSource() and
+    call.getCalleeName() = "splice"
+    or
+    (pred = call.getReceiver() or pred = call.getAnArgument()) and
+    succ = call and
+    call.getCalleeName() = "join"
     or
     // `e = array.pop()`, `e = array.shift()`, or similar: if `array` is tainted, then so is `e`.
-    call.(DataFlow::MethodCallNode).calls(pred, ["pop", "shift", "slice", "splice"]) and
+    call.(DataFlow::MethodCallNode).calls(pred, ["pop", "shift", "slice"]) and
     succ = call
     or
     // `e = Array.from(x)`: if `x` is tainted, then so is `e`.
