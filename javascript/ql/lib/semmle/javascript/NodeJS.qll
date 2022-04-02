@@ -75,6 +75,13 @@ class NodeModule extends Module {
       name = pwn.getPropertyName()
     )
     or
+    // a property write `module.exports = foo`
+    exists(DataFlow::PropWrite pwn | result = pwn.getRhs() |
+      pwn.getBase().asExpr() = getModuleVariable().getAReference() and
+      pwn.getPropertyName() = "exports" and      
+      name = "default"
+    )
+    or
     // a re-export using spread-operator. E.g. `const foo = require("./foo"); module.exports = {bar: bar, ...foo};`
     exists(ObjectExpr obj | obj = this.getAModuleExportsNode().asExpr() |
       result =
