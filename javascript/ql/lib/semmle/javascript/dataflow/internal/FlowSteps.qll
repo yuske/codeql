@@ -685,6 +685,8 @@ module PathSummary {
    */
   PathSummary call() { exists(FlowLabel lbl | result = MkPathSummary(false, true, lbl, lbl)) }
 
+  PathSummary call(FlowLabel lbl) { result = MkPathSummary(false, true, lbl, lbl) }
+
   /**
    * Gets a summary describing a path with one or more returns, but no calls.
    */

@@ -1669,7 +1669,7 @@ private predicate reachableFromSource(
     isSource(nd, cfg, lbl) and
     not cfg.isBarrier(nd) and
     not cfg.isLabeledBarrier(nd, lbl) and
-    summary = PathSummary::level(lbl)
+    summary = PathSummary::call(lbl)
   )
   or
   exists(DataFlow::Node pred, PathSummary oldSummary, PathSummary newSummary |
@@ -1734,7 +1734,7 @@ private newtype TPathNode =
  * with the given `summary`.
  */
 private predicate isSourceNode(DataFlow::Node nd, DataFlow::Configuration cfg, PathSummary summary) {
-  exists(FlowLabel lbl | summary = PathSummary::level(lbl) |
+  exists(FlowLabel lbl | summary = PathSummary::call(lbl) |
     isSource(nd, cfg, lbl) and
     isLive() and
     onPath(nd, cfg, summary)
