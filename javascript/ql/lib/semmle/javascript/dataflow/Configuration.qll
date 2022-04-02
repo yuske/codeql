@@ -1177,7 +1177,7 @@ private predicate appendStep(
 ) {
   exists(PathSummary stepSummary |
     flowStep(pred, cfg, succ, stepSummary) and
-    stepSummary.isLevel() and
+    //stepSummary.isLevel() and // commented out to fix the captured variable propogation through a returned value, see mout_lib
     newSummary = oldSummary.append(stepSummary)
   )
 }
