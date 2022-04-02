@@ -156,6 +156,10 @@ abstract class Configuration extends string {
     none()
   }
 
+  predicate isCallFlowStep(FlowLabel lbl) {
+    none()
+  }
+
   /**
    * Holds if the intermediate flow node `node` is prohibited.
    */
@@ -877,6 +881,16 @@ private class FlowStepThroughImport extends SharedFlowStep {
   }
 }
 
+pragma[inline]
+private predicate isCallFlowBarrierEdge(DataFlow::Node pred, DataFlow::Node succ, DataFlow::Configuration cfg, FlowLabel predlbl) {
+  exists(FlowLabel lbl | 
+    cfg.isCallFlowStep(lbl) and
+    predlbl = lbl and
+    pred = any(DataFlow::InvokeNode invoke) and
+    not succ = any(DataFlow::FunctionNode func)   // TODO
+  )
+}
+
 /**
  * Holds if there is a flow step from `pred` to `succ` described by `summary`
  * under configuration `cfg`, disregarding barriers.
@@ -891,6 +905,7 @@ private predicate basicFlowStepNoBarrier(
   exists(FlowLabel predlbl, FlowLabel succlbl |
     localFlowStep(pred, succ, cfg, predlbl, succlbl) and
     not cfg.isBarrierEdge(pred, succ) and
+    not isCallFlowBarrierEdge(pred, succ, cfg, predlbl) and
     summary = MkPathSummary(false, false, predlbl, succlbl)
   )
   or
@@ -905,6 +920,13 @@ private predicate basicFlowStepNoBarrier(
   // Flow into function
   callStep(pred, succ) and
   summary = PathSummary::call()
+  or
+  exists(FlowLabel lbl/* , DataFlow::InvokeNode invoke */ |
+    cfg.isCallFlowStep(lbl) and
+    //pred.(DataFlow::FunctionNode) = invoke.getEnclosingFunction().flow() and
+    calls(pred, succ.(DataFlow::FunctionNode).getFunction()) and
+    summary = PathSummary::call(lbl)
+  )
   or
   // Flow out of function
   returnStep(pred, succ) and
@@ -1109,6 +1131,12 @@ private predicate callInputStep(
       captures(f, variable, def) and
       succ = DataFlow::ssaDefinitionNode(def)
     )
+    or
+    isRelevant(pred, cfg) and
+    cfg.isCallFlowStep(_) and
+    calls(invk, f) and
+    pred = invk and
+    succ.(DataFlow::FunctionNode).getFunction() = f
   ) and
   not cfg.isBarrier(succ) and
   not isBarrierEdge(cfg, pred, succ)

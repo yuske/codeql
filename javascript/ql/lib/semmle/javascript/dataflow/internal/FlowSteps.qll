@@ -58,6 +58,13 @@ predicate localFlowStep(
   or
   localExceptionStep(pred, succ) and
   predlbl = succlbl
+  or
+  exists(FlowLabel lbl | 
+    configuration.isCallFlowStep(lbl) and
+    pred.(DataFlow::FunctionNode) = succ.(DataFlow::InvokeNode).getEnclosingFunction().flow() and 
+    predlbl = lbl and
+    succlbl = lbl
+  )
 }
 
 /**
