@@ -11,7 +11,7 @@ private import semmle.javascript.internal.CachedStages
  * Gets a parameter that is a library input to a top-level package.
  */
 cached
-DataFlow::SourceNode getALibraryInputParameter() {
+DataFlow::Node getALibraryInputParameter() {
   Stages::Taint::ref() and
   exists(int bound, DataFlow::FunctionNode func |
     func = getAValueExportedByPackage().getABoundFunctionValue(bound)
@@ -19,6 +19,15 @@ DataFlow::SourceNode getALibraryInputParameter() {
     result = func.getParameter(any(int arg | arg >= bound))
     or
     result = getAnArgumentsRead(func.getFunction())
+    or
+    // TODO: probably this predicate should replace getAnArgumentsRead(), test it
+    // the result must be DataFlow::Node for it
+    exists(ArgumentsVariable v |
+      not exists(v.getADeclaration()) and
+      func.getFunction() = v.getFunction()
+    |
+      v.getAnAccess().flow() = result
+    )
   )
 }
 
@@ -52,7 +61,9 @@ private import NodeModuleResolutionImpl as NodeModule
 private DataFlow::Node getAValueExportedByPackage() {
   // The base case, an export from a named `package.json` file.
   result =
-    getAnExportFromModule(any(PackageJson pack | exists(pack.getPackageName())).getMainModule())
+    // commented out using only main module
+    //getAnExportFromModule(any(PackageJson pack | exists(pack.getPackageName())).getMainModule())
+    getAnExportFromModule(_)
   or
   // module.exports.bar.baz = result;
   exists(DataFlow::PropWrite write |
@@ -85,6 +96,14 @@ private DataFlow::Node getAValueExportedByPackage() {
     mod = getAValueExportedByPackage().getEnclosingExpr().(Import).getImportedModule()
   |
     result = getAnExportFromModule(mod)
+  )
+  or
+  // TODO: A module of deep_set is detected as AMD and 
+  // therefore an export doesn't work properly 
+  // use this simple workaround 
+  exists(DataFlow::PropWrite pwn | result = pwn.getRhs() |
+    pwn.getBase().asExpr().(VarRef).getName() = "module" and
+    pwn.getPropertyName() = "exports"
   )
   or
   // require("./other-module.js"); inside an AMD module.
