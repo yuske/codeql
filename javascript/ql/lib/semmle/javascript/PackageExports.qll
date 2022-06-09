@@ -20,8 +20,6 @@ DataFlow::Node getALibraryInputParameter() {
     or
     result = getAnArgumentsRead(func.getFunction())
     or
-    // TODO: probably this predicate should replace getAnArgumentsRead(), test it
-    // the result must be DataFlow::Node for it
     exists(ArgumentsVariable v |
       not exists(v.getADeclaration()) and
       func.getFunction() = v.getFunction()
@@ -58,10 +56,9 @@ private import NodeModuleResolutionImpl as NodeModule
 /**
  * Gets a value exported by the main module from a named `package.json` file.
  */
-private DataFlow::Node getAValueExportedByPackage() {
+/* private */ DataFlow::Node getAValueExportedByPackage() {
   // The base case, an export from a named `package.json` file.
   result =
-    // commented out using only main module
     //getAnExportFromModule(any(PackageJson pack | exists(pack.getPackageName())).getMainModule())
     getAnExportFromModule(_)
   or
@@ -91,15 +88,14 @@ private DataFlow::Node getAValueExportedByPackage() {
   result =
     getAValueExportedByPackage().(DataFlow::SourceNode).getAPropertyReference(publicPropertyName())
   or
-  // module.exports.foo = require("./other-module.js");
-  exists(Module mod |
-    mod = getAValueExportedByPackage().getEnclosingExpr().(Import).getImportedModule()
-  |
-    result = getAnExportFromModule(mod)
-  )
-  or
-  // TODO: A module of deep_set is detected as AMD and 
-  // therefore an export doesn't work properly 
+  // // module.exports.foo = require("./other-module.js");
+  // exists(Module mod |
+  //   mod = getAValueExportedByPackage().getEnclosingExpr().(Import).getImportedModule()
+  // |
+  //   result = getAnExportFromModule(mod)
+  // )
+  // or
+  // A module of deep_set is detected as AMD and therefore an export doesn't work properly
   // use this simple workaround 
   exists(DataFlow::PropWrite pwn | result = pwn.getRhs() |
     pwn.getBase().asExpr().(VarRef).getName() = "module" and
@@ -186,6 +182,13 @@ private DataFlow::Node getAValueExportedByPackage() {
   |
     mod = func.getAReturn().getALocalSource().getEnclosingExpr().(Import).getImportedModule() and
     result = getAnExportFromModule(mod)
+  )
+  or
+  // the exported value is a function that returns another function or a new object
+  exists(DataFlow::FunctionNode func |
+    func = getAValueExportedByPackage().getABoundFunctionValue(_)
+  |
+    result = func.getAReturn()
   )
   or
   // *****
