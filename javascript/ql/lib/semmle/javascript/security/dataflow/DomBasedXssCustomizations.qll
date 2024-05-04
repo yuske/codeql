@@ -18,6 +18,20 @@ module DomBasedXss {
   /** A sanitizer for DOM-based XSS vulnerabilities. */
   abstract class Sanitizer extends Shared::Sanitizer { }
 
+  class EvalSink extends Sink {
+    EvalSink() {
+      exists (DataFlow::CallNode call |
+        call.getCalleeName() = "eval" and
+        call.getArgument(0) = this
+      )
+      or
+      exists (DataFlow::NewNode call |
+        call.getCalleeName() = "Function" and
+        call.getArgument(2) = this
+      )
+    }
+  }
+
   /**
    * An expression whose value is interpreted as HTML
    * and may be inserted into the DOM through a library.
